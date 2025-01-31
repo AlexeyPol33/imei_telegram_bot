@@ -12,6 +12,7 @@ SERVICEID = 12
 class CheckImeiView(web.View):
 
     async def get_deviceId(self):
+
         try:
             data = await self.request.json()
             deviceId = data['imei']
@@ -19,14 +20,17 @@ class CheckImeiView(web.View):
             return web.json_response(
                 status=400,
                 text="Invalid request format")
+
         except KeyError:
             return web.json_response(
                 status=400,
                 text="The request must contain the ‘imei’ parameter")
+
         if len(deviceId) != 15:
             return web.json_response(
                 status=400,
                 text= f"imei is {len(deviceId)} characters long(imei must be 15 characters long)")
+
         if not deviceId.isdigit():
             return web.json_response(
                 status=400,
@@ -37,9 +41,7 @@ class CheckImeiView(web.View):
     async def post(self):
 
         deviceId = await self.get_deviceId()
-        if isinstance(deviceId, str):
-            pass
-        else:
+        if not isinstance(deviceId, str):
             return deviceId
 
         token = os.getenv('TOKEN')
