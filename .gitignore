@@ -1,3 +1,4 @@
 imei_tb_venv
 tasks.md
 .env
+__pycache__
