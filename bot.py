@@ -5,19 +5,19 @@ from io import BytesIO
 from datetime import datetime, timedelta
 from aiohttp import ClientSession
 from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
-from telegram.ext import ApplicationBuilder, ContextTypes,\
-                    CommandHandler, MessageHandler, filters,\
-                    CallbackQueryHandler, CallbackContext
+from telegram.ext import ApplicationBuilder, ContextTypes, \
+CommandHandler, MessageHandler, filters, CallbackQueryHandler, CallbackContext
 from abc import ABC, abstractmethod
 from settings import TELEGRAM_BOT_TOKEN, IMEI_API, SECRET_KEY
 
 
 commands = []
 
+
 def generate_jwt(user_id):
     return jwt.encode(
         payload={
-            'sub': str(user_id), 
+            'sub': str(user_id),
             'exp': datetime.now() + timedelta(minutes=20)},
         key=SECRET_KEY,
         algorithm='HS256')
@@ -25,6 +25,7 @@ def generate_jwt(user_id):
 
 class BotCore(object):
     __instance = None
+
     def __new__(cls, *args, **kwargs):
         if cls.__instance is None:
             cls.__instance = object.__new__(cls)
@@ -59,7 +60,7 @@ class RegisterCommand:
 class Command(ABC):
     @staticmethod
     @abstractmethod
-    async def execute(update: Update, context: ContextTypes): ...
+    async def execute(update: Update, context: ContextTypes) -> None: ...
 
 
 @RegisterCommand(CommandHandler, 'start')
@@ -71,28 +72,27 @@ class Start(Command):
         await context.bot.send_message(
             chat_id=update.effective_chat.id,
             text=' '.join(('Every mobile phone, GSM modem or device with built-in',
-                  'phone/modem has a unique 15-digit IMEI number. Based on',
-                  'this number you can check some information about the device,',
-                  'such as brand or model. Enter the IMEI number in the chat,',
-                  'after the /IMEI command.')))
+                           'phone/modem has a unique 15-digit IMEI number. Based on',
+                           'this number you can check some information about the device,',
+                           'such as brand or model. Enter the IMEI number in the chat,',
+                           'after the /IMEI command.')))
 
 
 @RegisterCommand(CommandHandler, 'IMEI')
 class IMEI(Command):
 
     @staticmethod
-    async def get_imei(imei:str):
+    async def get_imei(imei: str):
 
         if len(imei) != 15:
-            raise ValueError(f'IMEI is {len(imei)} characters long(imei must be 15 characters long)')
+            raise ValueError(f'IMEI is {len(imei)} characters long (imei must be 15 characters long)')
         if not imei.isdigit():
-            raise ValueError(f"imei must consist of digits")
+            raise ValueError("imei must consist of digits")
         return imei
 
     @staticmethod
     async def execute(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-        user_name = update.effective_user.username
         user_id = update.effective_user.id
         try:
             imei = await IMEI.get_imei(context.args[0])
@@ -107,11 +107,11 @@ class IMEI(Command):
                 text='No value after /IMEI.'
             )
             return
-        
+
         async with ClientSession() as session:
 
             headers = {'Authorization': f'Bearer {generate_jwt(user_id)}'}
-            data = json.dumps({"imei":imei})
+            data = json.dumps({"imei": imei})
             async with session.post(f'{IMEI_API}/api/check-imei', headers=headers, data=data) as resp:
                 resp_status = resp.status
                 if resp_status != 200:
@@ -120,7 +120,7 @@ class IMEI(Command):
                         text=await resp.text())
 
                 resp_data = await resp.json()
-        image = resp_data.pop('image',None)
+        image = resp_data.pop('image', None)
         if image:
             image = base64.b64decode(image)
             await context.bot.send_photo(
@@ -130,10 +130,8 @@ class IMEI(Command):
             for key, value in resp_data.items():
                 await context.bot.send_message(
                     chat_id=update.effective_chat.id,
-                    text = f'{key} - {value}')
+                    text=f'{key} - {value}')
 
 
 if __name__ == '__main__':
     BotCore(TELEGRAM_BOT_TOKEN).run()
-
-    

@@ -37,12 +37,12 @@ def require_auth(handler):
     async def wrapped(obj, *args, **kwargs):
         request = obj.request
         if "user" not in request:
-            return web.json_response(status=401,text='Unauthorized')
+            return web.json_response(status=401, text='Unauthorized')
         connection = psycopg2.connect(
-            dbname="whitelist",
-            user="postgres",
-            password="postgres",
-            host="localhost",
+            dbname=DB_NAME,
+            user=DB_USER,
+            password=DB_PASSWORD,
+            host=DB_HOST,
             port="5432"
         )
         cursor = connection.cursor()
@@ -55,8 +55,9 @@ def require_auth(handler):
         if user:
             return await handler(obj, *args, **kwargs)
         else:
-            return web.json_response(status=403,text='Access denial')
+            return web.json_response(status=403, text='Access denial')
     return wrapped
+
 
 class CheckImeiView(web.View):
 
@@ -77,12 +78,12 @@ class CheckImeiView(web.View):
         if len(deviceId) != 15:
             return web.json_response(
                 status=400,
-                text= f"imei is {len(deviceId)} characters long(imei must be 15 characters long)")
+                text=f"imei is {len(deviceId)} characters long(imei must be 15 characters long)")
 
         if not deviceId.isdigit():
             return web.json_response(
                 status=400,
-                text= f"imei must consist of digits")
+                text="imei must consist of digits")
 
         return deviceId
 
@@ -99,14 +100,19 @@ class CheckImeiView(web.View):
         data = {
             "deviceId": deviceId,
             "serviceId": SERVICEID}
-                
+
         async with ClientSession() as session:
 
-            async with session.post(url=IMEI_CHECK_URL + '/v1/checks', headers=headers,data=data) as resp:
+            async with session.post(url=IMEI_CHECK_URL + '/v1/checks', headers=headers, data=data) as resp:
                 status = resp.status
+                if status != 201:
+                    return web.json_response(
+                            status=523,
+                        text='the external resource did not send the data')
+                    
                 text = await resp.json()
             async with session.get(url=text['properties']['image']) as img:
-                   text['properties']['image'] = base64.b64encode(BytesIO(await img.read()).getvalue()).decode('utf-8')
+                text['properties']['image'] = base64.b64encode(BytesIO(await img.read()).getvalue()).decode('utf-8')
         try:
             return web.json_response(text['properties'])
         except KeyError:
@@ -120,7 +126,7 @@ async def get_app():
     app.middlewares.append(jwt_middleware)
     app.add_routes(
         [
-            web.post('/api/check-imei',CheckImeiView)
+            web.post('/api/check-imei', CheckImeiView)
         ])
     return app
 
