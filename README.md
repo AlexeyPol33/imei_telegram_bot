@@ -36,7 +36,7 @@
 ### 1️⃣ Клонирование репозитория
 
 ```sh
-git clone https://github.com/username/imei_telegram_bot.git
+git clone https://github.com/AlexeyPol33/imei_telegram_bot.git
 cd imei_telegram_bot
 ```
 
